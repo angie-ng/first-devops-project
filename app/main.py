@@ -16,6 +16,11 @@ def create_app():
     def echo():
         data = request.json or {}  # vezme JSON z POST requestu
         return jsonify(data=data), 200
+    
+    # Endpoint "/health" pro Smoke test uvnitr kontejneru
+    @app.route("/health")
+    def health():
+        return jsonify(status="ok"), 200
 
     return app
 
