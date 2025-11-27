@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI Pipeline
 
 on:
   push:
@@ -6,16 +6,26 @@ on:
       - main  # pipeline se spustí při každém pushi do main
   pull_request:
     branches:
-      - main
+      - main  # pipeline will run when pulling - merging to main
+
+permissions:
+  contents: read
+  packages: write  # this allows me to push the image to GHCR using GITHUB_TOKEN
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
+      # ------------------------------------------
+      # Checkout
+      # ------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # ------------------------------------------
+      # Python setup
+      # ------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -32,13 +42,16 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           pytest app/tests
 
+      # --------------------------------------------
+      # Build local Docker image - just for testing
+      # --------------------------------------------
       - name: Build Docker image
         run: |
           docker build -t dafnefirstapp:latest -f docker/Dockerfile .
 
-# -----------------------------------------------------------
-# Smoke test Docker container
-# -----------------------------------------------------------
+      # --------------------------------------------
+      # Smoke test of the Docker container
+      # --------------------------------------------
       - name: Test Docker container functionality
         run: |
           docker run -d --name dafneapp -p 5000:5000 dafnefirstapp:latest
@@ -63,6 +76,36 @@ jobs:
           docker rm dafneapp
           docker rmi dafnefirstapp
 
+      # -----------------------------------------------
+      # Log in to GHCR (GitHub Container Registry)
+      # -----------------------------------------------    
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------------------------------
+      # Build & push final Docker image - for pushing to GHCR
+      # In this step we are setting also a tag to the image
+      # ------------------------------------------------      
+      - name: Build & push production image
+        run: |
+          IMAGE=ghcr.io/${{ github.repository }}:${{ github.sha }}
+          echo "Building image $IMAGE"
+          docker build --cache-from dafnefirstapp:latest -t $IMAGE -f docker/Dockerfile .
+          docker push $IMAGE
+      
+      # -------------------------------------------------
+      # Export image tag for CD - saving the value of the image's tag
+      # to the variable so that CD (or other job) knows which tag has
+      # the image we have just pushed to the registry.
+      # -------------------------------------------------
+      - name: Set output tag
+        id: image
+        run: echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+
 # -------------------------------------------------------------
 # Optional staging deploy via Docker compose
 # -------------------------------------------------------------
@@ -80,6 +123,7 @@ jobs:
             sleep 1
             if [ $i -eq 15 ]; then
               echo "Compose services failed to start or respond"
+              docker compose down
+              exit 1
             fi
           done
-          docker compose down
