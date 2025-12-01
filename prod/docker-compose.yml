@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   web:
-    image: ghcr.io/angie-ng/dafnefirstapp:${IMAGE_TAG}
+    image: ghcr.io/angie-ng/first-devops-project/dafnefirstapp:${IMAGE_TAG}
     container_name: dafneapp
     ports:
       - "5000:5000"
