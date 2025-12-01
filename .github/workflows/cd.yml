@@ -1,9 +1,10 @@
 name: CD Pipeline
 
 on:
-  push:
-    branches:
-      - main  # deploy when pushing to main branch
+  workflow-run:
+    workflows: ["CI Pipeline"]
+    types:
+      - completed # CD will be triggered when CI workflow will be successfully completed 
 
 jobs:
   deploy:
@@ -22,8 +23,9 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             # saving the values for the prod server and Docker compose: token for GHCR and tag of the newest image
+            # head_sha is the tag which was pushed by CI
             export GHCR_TOKEN=${{ secrets.GHCR_TOKEN }}
-            export IMAGE_TAG=${{ github.sha }}
+            export IMAGE_TAG=${{ github.event.workflow_run.head_sha }}
 
             # Run the server deploy script
             bash ~/Deployment/deploy.sh
