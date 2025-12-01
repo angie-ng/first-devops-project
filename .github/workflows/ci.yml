@@ -92,7 +92,8 @@ jobs:
       # ------------------------------------------------      
       - name: Build & push production image
         run: |
-          IMAGE=ghcr.io/${{ github.repository }}:${{ github.sha }}
+          # define image name based on the name of the app
+          IMAGE=ghcr.io/${{ github.repository }}/dafnefirstapp:${{ github.sha }}
           echo "Building image $IMAGE"
           docker build --cache-from dafnefirstapp:latest -t $IMAGE -f docker/Dockerfile .
           docker push $IMAGE
