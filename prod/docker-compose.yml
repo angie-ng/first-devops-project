@@ -1,10 +1,78 @@
 version: '3.9'
 
 services:
+  # -------------------------------------------------
+  # Traefik reverse proxy
+  # -------------------------------------------------
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: unless-stopped  # restart container on failure or server reboot
+    command:
+      # Dashboard of the Traefik, Traefik runs the dashboard through router with BasicAuth
+      - "--api.dashboard=true"
+      # Traefic watches containers
+      - "--providers.docker=true"
+      # Containers must be explicitly labeled to be exposed
+      - "--providers.docker.exposedbydefault=false"
+
+      # ----------------------------
+      # Entry points (ports)
+      # ----------------------------
+      - "--entrypoints.web.address=:80"            # HTTP
+      - "--entrypoints.websecure.address=:443"    # HTTPS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure" # whatever comes on http will be redirected to https
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+      # ----------------------------
+      # Let’s Encrypt certificates
+      # ----------------------------
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true" # TLS challenge
+      - "--certificatesresolvers.myresolver.acme.email=${EMAIL_CERT}" # Email for certificates
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json" # Where Traefik stores certificates
+
+
+    # ----------------------------
+    # Open ports on the host
+    # ----------------------------
+    ports:
+      - "80:80"     # HTTP
+      - "443:443"   # HTTPS
+      - "8080:8080" # Traefik dashboard
+
+    # ----------------------------
+    # Access to Docker socket and certificates
+    # ----------------------------
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro" # Traefik can see all containers
+      - "./letsencrypt:/letsencrypt"        # Folder for certificates
+
+    labels:
+      # --------------------------------------
+      # BasicAuth
+      # --------------------------------------
+      - "traefik.enable=true"   # Traefik will watch this container
+      - "traefik.http.routers.traefik.rule=Host(`traefik.dafneapp.eu`)"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
+      - "traefik.http.routers.traefik.middlewares=traefik-auth"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+
+  # --------------------------------------------------------------
+  # My application - dafneapp
+  # --------------------------------------------------------------
   web:
     image: ghcr.io/angie-ng/first-devops-project/dafnefirstapp:${IMAGE_TAG}
     container_name: dafneapp
-    ports:
-      - "5000:5000"
-    restart: unless-stopped
+    restart: unless-stopped  # Restart container on failure or server reboot
+
+    # ----------------------------
+    # Traefik labels for routing
+    # ----------------------------
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dafneapp.rule=Host(`dafneapp.eu`) || Host(`www.dafneapp.eu`)" # Domains for routing
+      - "traefik.http.routers.dafneapp.entrypoints=websecure" # HTTPS entrypoint
+      - "traefik.http.routers.dafneapp.tls.certresolver=myresolver" # Use ACME resolver for automatic certificates
+      - "traefik.http.services.dafneapp.loadbalancer.server.port=5000" # Internal container port
 
