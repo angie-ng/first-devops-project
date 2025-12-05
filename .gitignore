@@ -9,3 +9,4 @@ logs/
 Logs/
 .venv/
 Deployment/
+.env
