@@ -13,9 +13,9 @@ services:
       - "--api.dashboard=true"
       # Traefic watches containers
       - "--providers.docker=true"
-      # Containers must be explicitly labeled to be exposed
+      # Containers must be explicitly labeled to be exposed        
       - "--providers.docker.exposedbydefault=false"
-
+    
       # ----------------------------
       # Entry points (ports)
       # ----------------------------
@@ -53,11 +53,12 @@ services:
       # --------------------------------------
       - "traefik.enable=true"   # Traefik will watch this container
       - "traefik.http.routers.traefik.rule=Host(`traefik.dafneapp.eu`)"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
-      - "traefik.http.routers.traefik.middlewares=traefik-auth"
+        # applies BasicAuth middleware for the entire router for traefik.dafneapp.eu
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$apr1$kQMJv1lu$nG.rCHQRZbtef3p4Mxnh4/"
+      - "traefik.http.routers.traefik.middlewares=traefik-auth" # defines Basic Auth middleware
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls.certresolver=myresolver"
-
+  
   # --------------------------------------------------------------
   # My application - dafneapp
   # --------------------------------------------------------------
