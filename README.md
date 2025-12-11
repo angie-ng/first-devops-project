@@ -69,3 +69,25 @@ Once connected, it exports two important environment variables for the productio
 These values are required by the production `docker-compose.yml` file to pull the correct image version from GHCR.
 
 Finally, the workflow executes the deployment script (`deploy.sh`) on the production server. This script logs in to GHCR, pulls the new image, and applies the updated Docker Compose configuration.
+
+---
+
+## Production Deployment Flow
+The production deployment is fully automated and runs after a successful CI workflow. The CD workflow connects to the production server via SSH and triggers the deployment script (`deploy.sh`). The script performs all required steps on the server:
+
+1. Authenticate with GHCR
+Logs in to GitHub Container Registry using the token passed from the CD workflow.
+2. Pull the latest image
+Downloads the new image version tagged with the commit SHA produced by CI.
+3. Reload the Docker Compose stack
+Applies the updated configuration and restarts the container with the new image version.
+
+Traffic is routed through Traefik, which handles HTTPS certificates and exposes the application on the public domain.
+
+The entire deployment is fully automated—no manual actions are required.
+
+---
+
+## Future Improvements
+This project focuses on demonstrating a complete CI/CD workflow with Docker, GitHub Actions, and automated server deployment.
+Further DevOps topics such as Kubernetes, Terraform, monitoring, and logging will be implemented in a dedicated follow-up project.
